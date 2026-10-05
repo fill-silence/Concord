@@ -34,8 +34,12 @@ def test_same_key_calls_across_store_instances_are_serialized(tmp_path, monkeypa
         writer = pool.submit(write)
         assert attempted.wait(5)
         # Main thread can observe ownership without timing a scheduler delay.
-        assert not second._lock("objects/shared").acquire(blocking=False)
+        lock = second._lock("objects/shared")
+        acquired = lock.acquire(blocking=False)
+        if acquired:
+            lock.release()
         release.set()
+        assert not acquired
         assert reader.result(timeout=5) == b"original"
         assert writer.result(timeout=5)
     assert second.read("objects/shared") == b"replacement"
